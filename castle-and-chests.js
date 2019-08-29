@@ -33,24 +33,7 @@ checkRooms = roomId => {
             axiosAction.get(exUrl + resRoom[0].data.chests[i])
           );
         }
-        axios
-          .all(temporaryChestArray)
-          .then(res => {
-            for (let i = 0; i < res.length; i++) {
-              if (
-                res[i].data.status &&
-                !res[i].data.status.includes(
-                  "This chest is empty :/ Try another one!"
-                ) &&
-                !chestsId.includes(res[i].data.id)
-              ) {
-                chestsId.push(res[i].data.id);
-                fullChest += 1;
-                console.log(`WE'VE GOT ${fullChest} full chests so far.`);
-              }
-            }
-          })
-          .catch(err => dealingWithErrors(err));
+        checkChests(temporaryChestArray);
       }
       if (resRoom[0].data.rooms.length > 0) {
         let temporaryRoomArray = [];
@@ -59,7 +42,16 @@ checkRooms = roomId => {
           if (castleMap[newRoom] === undefined) {
             roomNb += 1;
             castleMap[newRoom] = roomNb;
-            console.log(`${roomNb} / ${chestsId.length}`);
+            if (roomNb % 10000 === 0) {
+              const used = process.memoryUsage();
+              for (let key in used) {
+                console.log(
+                  `${key} ${Math.round((used[key] / 1024 / 1024) * 100) /
+                    100} MB`
+                );
+              }
+              console.log(roomNb, chestsId.length);
+            }
             temporaryRoomArray.push(checkRooms(newRoom));
           }
         }
@@ -69,6 +61,27 @@ checkRooms = roomId => {
       console.log("OUPS THERE WERE AN ERROR CHECKING A ROOM");
       dealingWithErrors(err);
     });
+};
+
+checkChests = ChestArr => {
+  axios
+    .all(ChestArr)
+    .then(res => {
+      for (let i = 0; i < res.length; i++) {
+        if (
+          res[i].data.status &&
+          !res[i].data.status.includes(
+            "This chest is empty :/ Try another one!"
+          ) &&
+          !chestsId.includes(res[i].data.id)
+        ) {
+          chestsId.push(res[i].data.id);
+          fullChest += 1;
+          console.log(`WE'VE GOT ${fullChest} full chests so far.`);
+        }
+      }
+    })
+    .catch(err => dealingWithErrors(err));
 };
 
 dealingWithErrors = error => {
