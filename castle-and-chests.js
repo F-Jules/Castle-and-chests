@@ -3,7 +3,7 @@ const axios = require("axios");
 const Agent = require("agentkeepalive");
 const keepAliveAgent = new Agent({
   maxSockets: 30,
-  maxFreeSockets: 5,
+  maxFreeSockets: 3,
   timeout: 60000,
   freeSocketTimeout: 30000
 });
@@ -16,6 +16,7 @@ const exUrl = "http://mediarithmics.francecentral.cloudapp.azure.com:3000";
 const entryId = "/castles/1/rooms/entry";
 
 let castleMap = new Object();
+let chestsId = [];
 let fullChest = 0;
 let roomNb = 0;
 castleMap[entryId] = roomNb;
@@ -33,8 +34,10 @@ checkRooms = roomId => {
                 resChest.data.status &&
                 !resChest.data.status.includes(
                   "This chest is empty :/ Try another one!"
-                )
+                ) &&
+                !chestsId.includes(resRoom.data.chests[i])
               ) {
+                chestsId.push(resRoom.data.chests[i]);
                 fullChest += 1;
                 console.log(`WE'VE GOT ${fullChest} full chests so far.`);
               }
@@ -51,7 +54,7 @@ checkRooms = roomId => {
           if (castleMap[newRoom] === undefined) {
             roomNb += 1;
             castleMap[newRoom] = roomNb;
-            console.log(roomNb);
+            console.log(`${roomNb} / ${chestsId.length}`);
             checkRooms(newRoom);
           }
         }
