@@ -22,40 +22,45 @@ let roomNb = 0;
 castleMap[entryId] = roomNb;
 
 checkRooms = roomId => {
-  axiosAction
-    .get(exUrl + roomId)
+  let firstCall = axiosAction.get(exUrl + roomId);
+  axios
+    .all([firstCall])
     .then(resRoom => {
-      if (resRoom.data.chests.length > 0) {
-        for (let i = 0; i < resRoom.data.chests.length; i++) {
-          axiosAction
-            .get(exUrl + resRoom.data.chests[i])
-            .then(resChest => {
+      if (resRoom[0].data.chests.length > 0) {
+        let temporaryChestArray = [];
+        for (let i = 0; i < resRoom[0].data.chests.length; i++) {
+          temporaryChestArray.push(
+            axiosAction.get(exUrl + resRoom[0].data.chests[i])
+          );
+        }
+        axios
+          .all(temporaryChestArray)
+          .then(res => {
+            for (let i = 0; i < res.length; i++) {
               if (
-                resChest.data.status &&
-                !resChest.data.status.includes(
+                res[i].data.status &&
+                !res[i].data.status.includes(
                   "This chest is empty :/ Try another one!"
                 ) &&
-                !chestsId.includes(resRoom.data.chests[i])
+                !chestsId.includes(res[i].data.id)
               ) {
-                chestsId.push(resRoom.data.chests[i]);
+                chestsId.push(res[i].data.id);
                 fullChest += 1;
                 console.log(`WE'VE GOT ${fullChest} full chests so far.`);
               }
-            })
-            .catch(err => {
-              console.log("OUPS THERE WERE AN ERROR CHECKING A CHESTS");
-              dealingWithErrors(err);
-            });
-        }
+            }
+          })
+          .catch(err => dealingWithErrors(err));
       }
-      if (resRoom.data.rooms.length > 0) {
-        for (let i = 0; i < resRoom.data.rooms.length; i++) {
-          let newRoom = resRoom.data.rooms[i];
+      if (resRoom[0].data.rooms.length > 0) {
+        let temporaryRoomArray = [];
+        for (let i = 0; i < resRoom[0].data.rooms.length; i++) {
+          let newRoom = resRoom[0].data.rooms[i];
           if (castleMap[newRoom] === undefined) {
             roomNb += 1;
             castleMap[newRoom] = roomNb;
             console.log(`${roomNb} / ${chestsId.length}`);
-            checkRooms(newRoom);
+            temporaryRoomArray.push(checkRooms(newRoom));
           }
         }
       }
