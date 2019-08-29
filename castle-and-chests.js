@@ -1,54 +1,52 @@
 const axios = require("axios");
-const { performance } = require("perf_hooks");
+// const { performance } = require("perf_hooks");
 
 const Agent = require("agentkeepalive");
 const keepAliveAgent = new Agent({
-  maxSockets: 50,
-  maxFreeSockets: 10,
+  maxSockets: 10,
+  maxFreeSockets: 2,
   timeout: 60000,
   freeSocketTimeout: 30000
 });
 
-const axiosAction = axios.create({ httpAgent: keepAliveAgent });
+const axiosAction = axios.create({
+  httpAgent: keepAliveAgent
+});
 
 const exUrl = "http://mediarithmics.francecentral.cloudapp.azure.com:3000";
 const entryId = "/castles/1/rooms/entry";
 
 let fullChest = 0;
-let idRooms = ["entry"];
+let idRooms = [entryId];
 let idChests = [];
 
 checkRooms = async roomId => {
   try {
     const resRoom = await axiosAction.get(exUrl + roomId);
-    if (idRooms.length === 100) {
-      console.log(
-        `SCRIPT OVER: All rooms have been checked for a total of ${idRooms.length} and we've got ${fullChest} full chests.`
-      );
-      return;
-    }
-    for (let i = 0; i < resRoom.data.rooms.length; i++) {
-      if (!idRooms.includes(resRoom.data.rooms[i])) {
-        idRooms.push(resRoom.data.rooms[i]);
-        console.log(idRooms);
-      }
-    }
-    for (let i = 0; i < idRooms.length; i++) {
-      checkRooms(idRooms[i]);
-    }
     if (resRoom.data.chests.length > 0) {
       for (let x = 0; x < resRoom.data.chests.length; x++) {
         checkChests(resRoom.data.chests[x]);
       }
     }
+    for (let i = 0; i < resRoom.data.rooms.length; i++) {
+      if (!idRooms.includes(resRoom.data.rooms[i])) {
+        idRooms.push(resRoom.data.rooms[i]);
+        console.log(idRooms.length);
+        for (let i = 0; i < idRooms.length; i++) {
+          checkRooms(idRooms[i]);
+        }
+      }
+    }
   } catch (err) {
-    console.log("OUPS THERE WERE AN ERROR CHECKING A ROOM", err);
+    console.log("OUPS THERE WERE AN ERROR CHECKING A ROOM");
+    dealingWithErrors(err);
   }
 };
 
 checkChests = async chestId => {
   try {
     const resChest = await axiosAction.get(exUrl + chestId);
+    console.log("CHECKING CHEST ATM !", fullChest);
     if (
       resChest.data.status &&
       !resChest.data.status.includes(
@@ -56,12 +54,32 @@ checkChests = async chestId => {
       ) &&
       !idChests.includes(resChest.data.id)
     ) {
+      idChests.push(resRoom.data.chests[x]);
       fullChest += 1;
-      idChests.push(resChest.data.id);
       console.log(`WE'VE GOT ${fullChest} full chests so far.`);
     }
   } catch (err) {
-    console.log("OUPS THERE WERE AN ERROR CHECKING A CHESTS", err);
+    console.log("OUPS THERE WERE AN ERROR CHECKING A CHESTS");
+    dealingWithErrors(err);
+  }
+};
+
+dealingWithErrors = error => {
+  if (error.response) {
+    console.log(
+      "The request was made and the server responded with astatus code that falls out of the range of 2xx"
+    );
+    console.log("DATA", error.response.data);
+    console.log("STATUS", error.response.status);
+    console.log("HEADERS", error.response.headers);
+  } else if (error.request) {
+    console.log("The request was made but no response was received");
+    console.log("REQUEST", error.request);
+  } else {
+    console.log(
+      "Something happened in setting up the request and triggered an Error"
+    );
+    console.log("Error", error.message);
   }
 };
 
