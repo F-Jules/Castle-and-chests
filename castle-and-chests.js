@@ -1,10 +1,9 @@
 const axios = require("axios");
-// const { performance } = require("perf_hooks");
 
 const Agent = require("agentkeepalive");
 const keepAliveAgent = new Agent({
-  maxSockets: 10,
-  maxFreeSockets: 2,
+  maxSockets: 100,
+  maxFreeSockets: 10,
   timeout: 60000,
   freeSocketTimeout: 30000
 });
@@ -24,8 +23,8 @@ checkRooms = async roomId => {
   try {
     const resRoom = await axiosAction.get(exUrl + roomId);
     if (resRoom.data.chests.length > 0) {
-      for (let x = 0; x < resRoom.data.chests.length; x++) {
-        checkChests(resRoom.data.chests[x]);
+      for (let i = 0; i < resRoom.data.chests.length; i++) {
+        checkChests(resRoom.data.chests[i]);
       }
     }
     for (let i = 0; i < resRoom.data.rooms.length; i++) {
