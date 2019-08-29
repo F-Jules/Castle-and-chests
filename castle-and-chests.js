@@ -2,8 +2,8 @@ const axios = require("axios");
 
 const Agent = require("agentkeepalive");
 const keepAliveAgent = new Agent({
-  maxSockets: 100,
-  maxFreeSockets: 15,
+  maxSockets: 50,
+  maxFreeSockets: 5,
   timeout: 60000,
   freeSocketTimeout: 30000
 });
@@ -21,46 +21,46 @@ let roomNb = 0;
 castleMap[entryId] = roomNb;
 
 checkRooms = roomId => {
-  try {
-    const resRoom = axiosAction.get(exUrl + roomId);
-    console.log(resRoom);
-    if (resRoom.data.chests.length > 0) {
-      for (let i = 0; i < resRoom.data.chests.length; i++) {
-        // checkChests(resRoom.data.chests[i]);
-        try {
-          const resChest = await axiosAction.get(
-            exUrl + resRoom.data.chests[i]
-          );
-          if (
-            resChest.data.status &&
-            !resChest.data.status.includes(
-              "This chest is empty :/ Try another one!"
-            )
-          ) {
-            fullChest += 1;
-            console.log(`WE'VE GOT ${fullChest} full chests so far.`);
+  axiosAction
+    .get(exUrl + roomId)
+    .then(resRoom => {
+      if (resRoom.data.chests.length > 0) {
+        for (let i = 0; i < resRoom.data.chests.length; i++) {
+          axiosAction
+            .get(exUrl + resRoom.data.chests[i])
+            .then(resChest => {
+              if (
+                resChest.data.status &&
+                !resChest.data.status.includes(
+                  "This chest is empty :/ Try another one!"
+                )
+              ) {
+                fullChest += 1;
+                console.log(`WE'VE GOT ${fullChest} full chests so far.`);
+              }
+            })
+            .catch(err => {
+              console.log("OUPS THERE WERE AN ERROR CHECKING A CHESTS");
+              dealingWithErrors(err);
+            });
+        }
+      }
+      if (resRoom.data.rooms.length > 0) {
+        for (let i = 0; i < resRoom.data.rooms.length; i++) {
+          let newRoom = resRoom.data.rooms[i];
+          if (castleMap[newRoom] === undefined) {
+            roomNb += 1;
+            castleMap[newRoom] = roomNb;
+            console.log(roomNb);
+            checkRooms(newRoom);
           }
-        } catch (err) {
-          console.log("OUPS THERE WERE AN ERROR CHECKING A CHESTS");
-          dealingWithErrors(err);
         }
       }
-    }
-    if (resRoom.data.rooms.length > 0) {
-      for (let i = 0; i < resRoom.data.rooms.length; i++) {
-        let newRoom = resRoom.data.rooms[i];
-        if (castleMap[newRoom] === undefined) {
-          roomNb += 1;
-          castleMap[newRoom] = roomNb;
-          console.log(roomNb);
-          await checkRooms(newRoom);
-        }
-      }
-    }
-  } catch (err) {
-    console.log("OUPS THERE WERE AN ERROR CHECKING A ROOM");
-    dealingWithErrors(err);
-  }
+    })
+    .catch(err => {
+      console.log("OUPS THERE WERE AN ERROR CHECKING A ROOM");
+      dealingWithErrors(err);
+    });
 };
 
 dealingWithErrors = error => {
