@@ -2,7 +2,7 @@ const axios = require("axios");
 
 const Agent = require("agentkeepalive");
 const keepAliveAgent = new Agent({
-  maxSockets: 50,
+  maxSockets: 30,
   maxFreeSockets: 5,
   timeout: 60000,
   freeSocketTimeout: 30000
