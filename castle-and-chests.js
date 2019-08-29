@@ -3,7 +3,7 @@ const axios = require("axios");
 const Agent = require("agentkeepalive");
 const keepAliveAgent = new Agent({
   maxSockets: 100,
-  maxFreeSockets: 10,
+  maxFreeSockets: 15,
   timeout: 60000,
   freeSocketTimeout: 30000
 });
@@ -15,50 +15,50 @@ const axiosAction = axios.create({
 const exUrl = "http://mediarithmics.francecentral.cloudapp.azure.com:3000";
 const entryId = "/castles/1/rooms/entry";
 
+let castleMap = new Object();
 let fullChest = 0;
-let idRooms = [entryId];
-let idChests = [];
+let roomNb = 0;
+castleMap[entryId] = roomNb;
 
-checkRooms = async roomId => {
+checkRooms = roomId => {
   try {
-    const resRoom = await axiosAction.get(exUrl + roomId);
+    const resRoom = axiosAction.get(exUrl + roomId);
+    console.log(resRoom);
     if (resRoom.data.chests.length > 0) {
       for (let i = 0; i < resRoom.data.chests.length; i++) {
-        checkChests(resRoom.data.chests[i]);
+        // checkChests(resRoom.data.chests[i]);
+        try {
+          const resChest = await axiosAction.get(
+            exUrl + resRoom.data.chests[i]
+          );
+          if (
+            resChest.data.status &&
+            !resChest.data.status.includes(
+              "This chest is empty :/ Try another one!"
+            )
+          ) {
+            fullChest += 1;
+            console.log(`WE'VE GOT ${fullChest} full chests so far.`);
+          }
+        } catch (err) {
+          console.log("OUPS THERE WERE AN ERROR CHECKING A CHESTS");
+          dealingWithErrors(err);
+        }
       }
     }
-    for (let i = 0; i < resRoom.data.rooms.length; i++) {
-      if (!idRooms.includes(resRoom.data.rooms[i])) {
-        idRooms.push(resRoom.data.rooms[i]);
-        console.log(idRooms.length);
-        for (let i = 0; i < idRooms.length; i++) {
-          checkRooms(idRooms[i]);
+    if (resRoom.data.rooms.length > 0) {
+      for (let i = 0; i < resRoom.data.rooms.length; i++) {
+        let newRoom = resRoom.data.rooms[i];
+        if (castleMap[newRoom] === undefined) {
+          roomNb += 1;
+          castleMap[newRoom] = roomNb;
+          console.log(roomNb);
+          await checkRooms(newRoom);
         }
       }
     }
   } catch (err) {
     console.log("OUPS THERE WERE AN ERROR CHECKING A ROOM");
-    dealingWithErrors(err);
-  }
-};
-
-checkChests = async chestId => {
-  try {
-    const resChest = await axiosAction.get(exUrl + chestId);
-    console.log("CHECKING CHEST ATM !", fullChest);
-    if (
-      resChest.data.status &&
-      !resChest.data.status.includes(
-        "This chest is empty :/ Try another one!"
-      ) &&
-      !idChests.includes(resChest.data.id)
-    ) {
-      idChests.push(resRoom.data.chests[x]);
-      fullChest += 1;
-      console.log(`WE'VE GOT ${fullChest} full chests so far.`);
-    }
-  } catch (err) {
-    console.log("OUPS THERE WERE AN ERROR CHECKING A CHESTS");
     dealingWithErrors(err);
   }
 };
