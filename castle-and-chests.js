@@ -9,53 +9,35 @@ const keepAliveAgent = new Agent({
 });
 
 const axiosAction = axios.create({
+  baseURL: "http://mediarithmics.francecentral.cloudapp.azure.com:3000",
   httpAgent: keepAliveAgent
 });
 
-const exUrl = "http://mediarithmics.francecentral.cloudapp.azure.com:3000";
 const entryId = "/castles/1/rooms/entry";
 
 let castleMap = new Object();
-let chestsId = [];
+let chestsId = new Object();
 let fullChest = 0;
 let roomNb = 0;
 castleMap[entryId] = roomNb;
 
 checkRooms = roomId => {
-  let firstCall = axiosAction.get(exUrl + roomId);
+  let firstCall = axiosAction.get(roomId);
   axios
     .all([firstCall])
     .then(resRoom => {
-      if (resRoom[0].data.chests.length > 0) {
-        let temporaryChestArray = [];
-        for (let i = 0; i < resRoom[0].data.chests.length; i++) {
-          temporaryChestArray.push(
-            axiosAction.get(exUrl + resRoom[0].data.chests[i])
-          );
-        }
-        checkChests(temporaryChestArray);
-      }
-      if (resRoom[0].data.rooms.length > 0) {
-        let temporaryRoomArray = [];
-        for (let i = 0; i < resRoom[0].data.rooms.length; i++) {
-          let newRoom = resRoom[0].data.rooms[i];
-          if (castleMap[newRoom] === undefined) {
-            roomNb += 1;
-            castleMap[newRoom] = roomNb;
-            if (roomNb % 10000 === 0) {
-              const used = process.memoryUsage();
-              for (let key in used) {
-                console.log(
-                  `${key} ${Math.round((used[key] / 1024 / 1024) * 100) /
-                    100} MB`
-                );
-              }
-              console.log(roomNb, chestsId.length);
-            }
-            temporaryRoomArray.push(checkRooms(newRoom));
+      checkChests(resRoom[0].data.chests.map(axiosAction.get));
+      resRoom[0].data.rooms.map(oneRoom => {
+        if (castleMap[oneRoom] === undefined) {
+          roomNb += 1;
+          castleMap[oneRoom] = roomNb;
+          if (roomNb % 10000 === 0) {
+            console.log(roomNb, fullChest);
+            checkingMemory();
           }
+          checkRooms(oneRoom);
         }
-      }
+      });
     })
     .catch(err => {
       console.log("OUPS THERE WERE AN ERROR CHECKING A ROOM");
@@ -66,21 +48,14 @@ checkRooms = roomId => {
 checkChests = ChestArr => {
   axios
     .all(ChestArr)
-    .then(res => {
-      for (let i = 0; i < res.length; i++) {
-        if (
-          res[i].data.status &&
-          !res[i].data.status.includes(
-            "This chest is empty :/ Try another one!"
-          ) &&
-          !chestsId.includes(res[i].data.id)
-        ) {
-          chestsId.push(res[i].data.id);
-          fullChest += 1;
-          console.log(`WE'VE GOT ${fullChest} full chests so far.`);
+    .then(res =>
+      res.map(oneChest => {
+        if (isChestFull(oneChest) && isChecked(oneChest)) {
+          rememberChest(oneChest);
+          console.log(chestsId);
         }
-      }
-    })
+      })
+    )
     .catch(err => dealingWithErrors(err));
 };
 
@@ -101,6 +76,24 @@ dealingWithErrors = error => {
     );
     console.log("Error", error.message);
   }
+};
+
+checkingMemory = () => {
+  const used = process.memoryUsage();
+  for (let key in used) {
+    console.log(
+      `${key} ${Math.round((used[key] / 1024 / 1024) * 100) / 100} MB`
+    );
+  }
+};
+
+isChestFull = chest => chest.data.status.includes("something");
+
+isChecked = chest => chestsId[chest.data.id] === undefined;
+
+rememberChest = chest => {
+  fullChest += 1;
+  chestsId[chest.data.id] = fullChest;
 };
 
 checkRooms(entryId);
